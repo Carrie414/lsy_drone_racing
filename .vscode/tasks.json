@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Level 2: visualize 20 races",
+      "type": "process",
+      "command": "${workspaceFolder}/.pixi/envs/default/python.exe",
+      "args": ["scripts/sim.py", "--config=level2.toml", "--render=True", "--n_runs=20"],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {"SCIPY_ARRAY_API": "1", "OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1"}
+      },
+      "group": {"kind": "build", "isDefault": true},
+      "presentation": {"reveal": "always", "panel": "dedicated", "clear": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "Level 2: official evaluation",
+      "type": "process",
+      "command": "${workspaceFolder}/.pixi/envs/default/python.exe",
+      "args": ["scripts/evaluate.py"],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {"SCIPY_ARRAY_API": "1", "OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1"}
+      },
+      "presentation": {"reveal": "always", "panel": "dedicated"},
+      "problemMatcher": []
+    }
+  ]
+}

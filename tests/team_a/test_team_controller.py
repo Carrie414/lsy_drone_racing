@@ -44,9 +44,16 @@ def observation() -> dict:
     }
 
 
-def test_official_loader_discovers_exactly_one_controller() -> None:
-    selected = load_controller(ROOT / "lsy_drone_racing/control/team_policy_controller.py")
-    assert selected.__name__ == "TeamPolicyController"
+@pytest.mark.parametrize(
+    "filename, classname",
+    [
+        ("team_policy_controller.py", "TeamPolicyController"),
+        ("team_c3_pilot_controller.py", "PilotController"),
+    ],
+)
+def test_official_loader_discovers_exactly_one_controller(filename: str, classname: str) -> None:
+    selected = load_controller(ROOT / "lsy_drone_racing/control" / filename)
+    assert selected.__name__ == classname
 
 
 def test_ten_step_entry_matches_baseline_and_training_history(observation: dict) -> None:

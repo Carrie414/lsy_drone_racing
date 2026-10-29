@@ -41,7 +41,7 @@ def write_json(path: Path, value: dict) -> None:
 
 
 def run_training(args: argparse.Namespace) -> dict:
-    """Train a finite C1/C2 pilot while keeping validation and final sets closed."""
+    """Train a finite C1/C2/C3 pilot while keeping validation and final sets closed."""
     if args.output_dir.exists():
         raise FileExistsError("Use a new output directory, including when resuming")
     if args.updates < 1 or args.batch_steps < 1 or not 1 <= args.seed_pool <= 4096:

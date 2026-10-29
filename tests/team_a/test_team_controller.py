@@ -49,6 +49,8 @@ def observation() -> dict:
     [
         ("team_policy_controller.py", "TeamPolicyController"),
         ("team_c3_pilot_controller.py", "PilotController"),
+        ("team_gate_response_controller.py", "GateResponseController"),
+        ("team_gate_soft_response_controller.py", "SoftGateResponseController"),
     ],
 )
 def test_official_loader_discovers_exactly_one_controller(filename: str, classname: str) -> None:
@@ -79,6 +81,35 @@ def test_ten_step_entry_matches_baseline_and_training_history(observation: dict)
             training_action, candidate.thrust_low, candidate.thrust_high
         )
         np.testing.assert_allclose(candidate.previous, previous[0], atol=1e-5, rtol=1e-5)
+
+
+def test_gate_response_is_bounded_and_resets_on_new_episode(observation: dict) -> None:
+    """A revelation can change commands only within the advertised normalized bounds."""
+    from lsy_drone_racing.control.team_c3_pilot_controller import PilotController
+    from lsy_drone_racing.control.team_gate_response_controller import GateResponseController
+
+    config = load_config(ROOT / "config/level2.toml")
+    candidate = GateResponseController(observation, {}, config)
+    baseline = PilotController(observation, {}, config)
+    np.testing.assert_array_equal(
+        candidate.compute_control(observation), baseline.compute_control(observation)
+    )
+    observation["gates_visited"][0] = True
+    observation["gates_pos"][0] += np.array([0.1, -0.15, 0.0])
+    action = candidate.compute_control(observation)
+    reference = baseline.compute_control(observation)
+    candidate_u = from_environment_action(action[None], candidate.thrust_low, candidate.thrust_high)
+    baseline_u = from_environment_action(
+        reference[None], candidate.thrust_low, candidate.thrust_high
+    )
+    assert np.max(np.abs(candidate_u - baseline_u)) <= 0.080001
+    assert candidate.space.contains(action)
+    np.testing.assert_array_equal(candidate.previous, candidate_u[0])
+    candidate.episode_reset()
+    fresh = GateResponseController(observation, {}, config)
+    np.testing.assert_array_equal(
+        candidate.compute_control(observation), fresh.compute_control(observation)
+    )
 
 
 @pytest.mark.parametrize("hook", ["reset", "episode_reset", "episode_callback"])

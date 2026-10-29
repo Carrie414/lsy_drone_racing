@@ -96,7 +96,7 @@ def main() -> None:
                 "POLICY_SHA256": artifact_manifest["artifact_sha256"],
             },
         )
-    elif args.controller == "team_policy_controller.py":
+    elif hasattr(cls, "MANIFEST_FILE"):
         model = ROOT / "lsy_drone_racing/control/policies_team" / cls.POLICY_FILE
     tracked = git_output(["ls-files"]).splitlines()
     original = {name: sha(ROOT / name) for name in tracked if (ROOT / name).is_file()}

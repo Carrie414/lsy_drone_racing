@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -112,3 +113,34 @@ def test_runner_can_resume_total_checkpoint_and_export(
     assert resumed["total_steps"] == 12 and resumed["total_updates"] == 2
     assert (next_args.output_dir / "candidate.manifest.json").exists()
     assert not resumed["validation_opened"] and not resumed["final_opened"]
+
+
+def test_pilot_screen_rejects_faster_but_less_reliable_candidate(tmp_path: Path) -> None:
+    from validation.team_b.compare_pilots import compare
+
+    values = {
+        "C0": [(True, 3.4), (True, 3.6), (False, 1.0)],
+        "C1": [(True, 3.3), (True, 3.5), (False, 1.0)],
+        "C2": [(True, 2.9), (False, 1.0), (False, 1.0)],
+    }
+    for name, outcomes in values.items():
+        folder = tmp_path / f"{name}-windows-development"
+        folder.mkdir()
+        rows = [
+            {"eval_seed": 110001 + i, "success": success, "official_time": elapsed}
+            for i, (success, elapsed) in enumerate(outcomes)
+        ]
+        times = [elapsed for success, elapsed in outcomes if success]
+        summary = {
+            "runs": 3,
+            "successes": len(times),
+            "mean_successful_seconds": float(np.mean(times)),
+        }
+        (folder / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        (folder / "episodes.jsonl").write_text(
+            "\n".join(json.dumps(row) for row in rows), encoding="utf-8"
+        )
+    report = compare(tmp_path)
+    assert report["worth_further_validation"] == ["C1"]
+    assert report["candidates"]["C2"]["baseline_success_candidate_fail"] == 1
+    assert not report["validation_opened"] and not report["final_opened"]

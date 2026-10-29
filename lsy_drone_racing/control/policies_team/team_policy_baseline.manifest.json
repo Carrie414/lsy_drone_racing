@@ -1,0 +1,24 @@
+{
+  "schema_version": "stage-ppo-v1",
+  "contract_version": "v2",
+  "artifact_sha256": "e965ad393e1f96442653505d0c507705cfd52960ea4b250a27694d61b40abf05",
+  "original_model_sha256": "d15e6d613041907ed5baa565f87ee3393df099b78ecb53b4428440399baede9a",
+  "profile": "C1-stage-ppo-v1",
+  "active_stages": [
+    0,
+    2
+  ],
+  "n_stages": 6,
+  "transition_rule": "hard-switch-on-official-stage",
+  "normalization": "original-mean-std-once-clip-10",
+  "action_mapping": "roll-pitch-yaw-thrust-v1-tilt-1.5",
+  "update_count": 0,
+  "training_manifest": {
+    "run_id": "baseline-format-conversion-no-training",
+    "policy_commit": "47733fa",
+    "training_commit": "none-no-training",
+    "training_kind": "baseline-conversion"
+  },
+  "source": "Xiaolong-Li1904/lsy_drone_racing@1cca34f2476d7791bdb7074fc9cf3dc32b4fbc27",
+  "license": "lsy_drone_racing/control/policies/level2_reference_LICENSE"
+}

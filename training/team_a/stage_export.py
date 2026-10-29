@@ -7,19 +7,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from training.team_a.npz_io import (
-    LAYER_SHAPES,
-    ORIGINAL_MODEL,
-    ORIGINAL_SHA256,
-    file_sha256,
-    numpy_mean,
-)
+from lsy_drone_racing.control.team_policy_runtime import SCHEMA_VERSION, NumpyStagePolicy
+from training.team_a.npz_io import ORIGINAL_MODEL, ORIGINAL_SHA256, file_sha256
 from training.team_contract import CONTRACT_VERSION
 
 if TYPE_CHECKING:
     from training.team_a.engine import StagePPOEngine
-
-SCHEMA_VERSION = "stage-ppo-v1"
 
 
 def export_stage_actor(engine: StagePPOEngine, path: Path, manifest: dict) -> dict:
@@ -27,8 +20,18 @@ def export_stage_actor(engine: StagePPOEngine, path: Path, manifest: dict) -> di
     required = {"run_id", "policy_commit", "training_commit", "training_kind"}
     if not required <= manifest.keys() or not all(manifest[key] for key in required):
         raise ValueError(f"Export requires provenance fields {sorted(required)}")
-    if manifest["training_kind"] not in {"synthetic-smoke", "racing"}:
-        raise ValueError("training_kind must distinguish synthetic tests from racing")
+    if manifest["training_kind"] not in {"baseline-conversion", "synthetic-smoke", "racing"}:
+        raise ValueError("training_kind must distinguish baseline, synthetic tests and racing")
+    if manifest["training_kind"] == "baseline-conversion":
+        unchanged = all(
+            np.array_equal(
+                value.detach().cpu().numpy(),
+                engine.reference.state_dict()[key].detach().cpu().numpy(),
+            )
+            for key, value in engine.actor.state_dict().items()
+        )
+        if engine.update_count != 0 or not unchanged:
+            raise ValueError("Baseline conversion requires the unchanged, never-updated actor")
     path = Path(path)
     if path.suffix != ".npz" or path.resolve() == ORIGINAL_MODEL.resolve():
         raise ValueError("Choose a new .npz path, never the original baseline")
@@ -39,6 +42,8 @@ def export_stage_actor(engine: StagePPOEngine, path: Path, manifest: dict) -> di
         "original_model_sha256": np.array(ORIGINAL_SHA256),
         "n_stages": np.array(engine.settings.n_stages, dtype=np.int64),
         "active_stages": np.asarray(engine.settings.active_stages, dtype=np.int64),
+        "training_kind": np.array(manifest["training_kind"]),
+        "update_count": np.array(engine.update_count, dtype=np.int64),
     }
     for prefix, actor in [("base", engine.reference), ("tuned", engine.actor)]:
         arrays[f"{prefix}_obs_mean"] = actor.obs_mean.detach().cpu().numpy().copy()
@@ -72,69 +77,3 @@ def export_stage_actor(engine: StagePPOEngine, path: Path, manifest: dict) -> di
         "source": "Xiaolong-Li1904/lsy_drone_racing@1cca34f2476d7791bdb7074fc9cf3dc32b4fbc27",
         "license": "lsy_drone_racing/control/policies/level2_reference_LICENSE",
     }
-
-
-class NumpyStagePolicy:
-    """Deterministic two-actor reader; neither this module nor npz_io imports Torch."""
-
-    def __init__(self, path: Path, expected_sha256: str) -> None:
-        """Validate a frozen exported artifact and its stage selection metadata."""
-        if file_sha256(path) != expected_sha256:
-            raise ValueError("Stage actor SHA256 mismatch")
-        with np.load(path, allow_pickle=False) as archive:
-            arrays = {key: np.array(archive[key], copy=True) for key in archive.files}
-        if (
-            arrays["schema_version"].item() != SCHEMA_VERSION
-            or arrays["contract_version"].item() != CONTRACT_VERSION
-            or arrays["original_model_sha256"].item() != ORIGINAL_SHA256
-        ):
-            raise ValueError("Stage actor schema, contract or original source mismatch")
-        self.profile = str(arrays["profile"].item())
-        self.n_stages = int(arrays["n_stages"])
-        self.active_stages = arrays["active_stages"]
-        if (
-            self.n_stages < 2
-            or self.active_stages.ndim != 1
-            or self.active_stages.dtype != np.int64
-            or not len(self.active_stages)
-            or len(np.unique(self.active_stages)) != len(self.active_stages)
-            or np.any(self.active_stages < 0)
-            or np.any(self.active_stages >= self.n_stages)
-        ):
-            raise ValueError("Invalid stage selection metadata")
-        self.actors = {}
-        for prefix in ["base", "tuned"]:
-            names = ["obs_mean", "obs_std", "tilt_max"]
-            names += [f"{kind}{i}" for i in range(4) for kind in ["W", "b"]]
-            actor = {key: arrays[f"{prefix}_{key}"] for key in names}
-            if any(not np.isfinite(a).all() for a in actor.values()):
-                raise ValueError("Non-finite actor arrays")
-            if (
-                actor["obs_mean"].shape != (46,)
-                or actor["obs_std"].shape != (46,)
-                or np.any(actor["obs_std"] <= 0)
-                or float(actor["tilt_max"]) != 1.5
-            ):
-                raise ValueError("Invalid normalization or tilt mapping")
-            for i, shape in enumerate(LAYER_SHAPES):
-                if actor[f"W{i}"].shape != shape or actor[f"b{i}"].shape != (shape[1],):
-                    raise ValueError("Invalid layer shape")
-            self.actors[prefix] = actor
-        for name in ["obs_mean", "obs_std", "tilt_max"]:
-            if not np.array_equal(self.actors["base"][name], self.actors["tuned"][name]):
-                raise ValueError("Frozen normalization must match across actors")
-
-    def commands(self, x: np.ndarray, gate_stage: np.ndarray) -> np.ndarray:
-        """Return final normalized commands with the same profile as training."""
-        stage = np.asarray(gate_stage)
-        if (
-            stage.shape != (len(x),)
-            or stage.dtype != np.int64
-            or np.any(stage < 0)
-            or np.any(stage >= self.n_stages)
-        ):
-            raise ValueError("Invalid gate_stage")
-        base = numpy_mean(x, self.actors["base"])
-        tuned = numpy_mean(x, self.actors["tuned"])
-        mask = np.isin(stage, self.active_stages)
-        return np.clip(np.where(mask[:, None], tuned, base), -1, 1).astype(np.float32)

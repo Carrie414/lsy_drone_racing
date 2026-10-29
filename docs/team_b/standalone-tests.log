@@ -1,0 +1,18 @@
+test_normal_pool_is_preserved_and_weights_bounded (test_primitives.CurriculumTests.test_normal_pool_is_preserved_and_weights_bounded) ... ok
+test_reserved_seeds_rejected (test_primitives.CurriculumTests.test_reserved_seeds_rejected) ... ok
+test_sampler_restore_reproduces_next_draw (test_primitives.CurriculumTests.test_sampler_restore_reproduces_next_draw) ... ok
+test_no_cross_episode_or_cross_environment_leak (test_primitives.GAETests.test_no_cross_episode_or_cross_environment_leak) ... ok
+test_sampling_cut_bootstraps_true_final_value (test_primitives.GAETests.test_sampling_cut_bootstraps_true_final_value) ... ok
+test_stage_change_not_a_terminal (test_primitives.GAETests.test_stage_change_not_a_terminal) ... ok
+test_task_timeout_does_not_bootstrap (test_primitives.GAETests.test_task_timeout_does_not_bootstrap) ... ok
+test_autoreset_must_supply_final_observation (test_primitives.RewardTests.test_autoreset_must_supply_final_observation) ... ok
+test_crossing_without_official_pass_gets_no_gate_reward (test_primitives.RewardTests.test_crossing_without_official_pass_gets_no_gate_reward) ... ok
+test_failure_masks_potential_from_terminal_warp (test_primitives.RewardTests.test_failure_masks_potential_from_terminal_warp) ... ok
+test_gate_and_finish_from_official_counter_only (test_primitives.RewardTests.test_gate_and_finish_from_official_counter_only) ... ok
+test_gate_reveal_does_not_create_progress (test_primitives.RewardTests.test_gate_reveal_does_not_create_progress) ... ok
+test_target_change_does_not_compare_unrelated_targets (test_primitives.RewardTests.test_target_change_does_not_compare_unrelated_targets) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.039s
+
+OK

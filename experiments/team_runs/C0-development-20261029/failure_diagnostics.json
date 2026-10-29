@@ -1,0 +1,49 @@
+{
+  "episodes": 200,
+  "recorded_control_steps": 29076,
+  "failures": 45,
+  "failure_target_unrevealed": 7,
+  "failure_target_revealed_last_10_steps": 37,
+  "command_saturation_fraction_by_axis": {
+    "roll": 0.04240610813041684,
+    "pitch": 0.05041959003989545,
+    "yaw": 0.2200440225615628,
+    "thrust": 0.49896822121337187
+  },
+  "saturation_definition": "abs(normalized issued command)>=0.99, before environmental action noise",
+  "recent_reveal_available_before_terminal_action": 35,
+  "target_revealed_only_in_terminal_transition": 2,
+  "normalized_stage_transition_jump": {
+    "0->1": {
+      "n": 176,
+      "p50": 0.362810846440414,
+      "p90": 0.5144249263824756,
+      "max": 0.6794473150878836
+    },
+    "1->2": {
+      "n": 171,
+      "p50": 0.1793818072325478,
+      "p90": 0.2604574127936716,
+      "max": 0.32323078591636756
+    },
+    "2->3": {
+      "n": 161,
+      "p50": 0.14626613565363936,
+      "p90": 0.2762652700463893,
+      "max": 0.4571957459451992
+    },
+    "3->4": {
+      "n": 157,
+      "p50": 0.27244829770855944,
+      "p90": 0.39576825527056597,
+      "max": 0.8604701969628308
+    },
+    "4->5": {
+      "n": 155,
+      "p50": 0.03239039580027259,
+      "p90": 0.16967262653006057,
+      "max": 0.4613040434585961
+    }
+  },
+  "interpretations": "Descriptive diagnostics only; no collision-cause or intervention-effect claim."
+}

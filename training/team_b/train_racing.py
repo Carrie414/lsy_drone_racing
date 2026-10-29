@@ -51,7 +51,11 @@ def run_training(args: argparse.Namespace) -> dict:
     random.seed(args.seed)
     np.random.seed(args.seed)
     settings = PPOSettings(
-        seed=args.seed, profile=f"{args.candidate}-stage-ppo-v1", epochs=4, minibatch_size=128
+        seed=args.seed,
+        profile=f"{args.candidate}-stage-ppo-v1",
+        epochs=4,
+        minibatch_size=128,
+        policy_kind="residual" if args.candidate == "C3" else "finetune",
     )
     engine = StagePPOEngine(settings)
     # A finite pool avoids allocating a million Python sampler records. All are training-only seeds.
@@ -210,7 +214,7 @@ def run_training(args: argparse.Namespace) -> dict:
 def main() -> None:
     """Run the preregistered finite pilot or continue a trusted local checkpoint."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--candidate", choices=["C1", "C2"], default="C1")
+    parser.add_argument("--candidate", choices=["C1", "C2", "C3"], default="C1")
     parser.add_argument("--updates", type=int, default=2)
     parser.add_argument("--batch-steps", type=int, default=1024)
     parser.add_argument("--seed-pool", type=int, default=512)

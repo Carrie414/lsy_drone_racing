@@ -14,6 +14,7 @@ from torch.distributions import Normal
 from training.team_a.npz_io import ORIGINAL_SHA256
 from training.team_a.policy import PretrainedActor, encode_obs
 from training.team_a.ppo_update import update_engine
+from training.team_a.residual import BoundedResidualActor
 from training.team_contract import CONTRACT_VERSION, PolicyStep
 
 if TYPE_CHECKING:
@@ -32,6 +33,8 @@ class PPOSettings:
     profile: str = "C1-stage-ppo-v1"
     n_stages: int = 6  # Five official passes plus the completed stage.
     active_stages: tuple[int, ...] = (0, 2)
+    policy_kind: str = "finetune"
+    residual_bounds: tuple[float, ...] = (0.1, 0.1, 0.1, 0.1)
     actor_lr: float = 1e-5
     critic_lr: float = 1e-3
     initial_std: float = 0.05
@@ -45,6 +48,14 @@ class PPOSettings:
 
     def __post_init__(self) -> None:
         """Reject invalid settings before optimizer creation."""
+        if self.policy_kind not in {"finetune", "residual"}:
+            raise ValueError("Unknown policy kind")
+        if (
+            len(self.residual_bounds) != 4
+            or not np.isfinite(self.residual_bounds).all()
+            or min(self.residual_bounds) <= 0
+        ):
+            raise ValueError("Four finite positive residual bounds are required")
         if self.n_stages < 2 or not self.active_stages:
             raise ValueError("At least two stages and one active stage are required")
         if len(set(self.active_stages)) != len(self.active_stages):
@@ -110,13 +121,18 @@ class StagePPOEngine:
         with torch.random.fork_rng(devices=[]):
             torch.manual_seed(self.settings.seed)
             self.reference = PretrainedActor().requires_grad_(False).eval()
-            self.actor = copy.deepcopy(self.reference).requires_grad_(True)
             self.critic = StageCritic(self.reference, self.settings.n_stages)
+            self.actor = (
+                BoundedResidualActor(self.reference, self.settings.residual_bounds)
+                if self.settings.policy_kind == "residual"
+                else copy.deepcopy(self.reference).requires_grad_(True)
+            )
         self.log_std = nn.Parameter(
             torch.full((4,), np.log(self.settings.initial_std), dtype=torch.float64)
         )
         self.actor_optimizer = torch.optim.Adam(
-            [*self.actor.parameters(), self.log_std], lr=self.settings.actor_lr
+            [*(p for p in self.actor.parameters() if p.requires_grad), self.log_std],
+            lr=self.settings.actor_lr,
         )
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=self.settings.critic_lr
@@ -216,7 +232,7 @@ class StagePPOEngine:
             state.get("engine_version") != ENGINE_VERSION
             or state.get("contract_version") != CONTRACT_VERSION
             or state.get("original_model_sha256") != ORIGINAL_SHA256
-            or state.get("settings") != asdict(self.settings)
+            or {**asdict(PPOSettings()), **state.get("settings", {})} != asdict(self.settings)
         ):
             raise ValueError("Checkpoint settings, baseline or protocol mismatch")
         self.actor.load_state_dict(state["actor"], strict=True)

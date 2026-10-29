@@ -26,7 +26,10 @@ def compare(root: Path) -> dict:
     """Apply the pilot's preregistered Pareto screen without opening held-out sets."""
     baseline, original = load_run(root / "C0-windows-development")
     outcomes = {}
-    for name in ["C1", "C2"]:
+    names = ["C1", "C2"]
+    if (root / "C3-windows-development/summary.json").exists():
+        names.append("C3")
+    for name in names:
         summary, candidate = load_run(root / f"{name}-windows-development")
         if set(original) != set(candidate):
             raise ValueError("Candidate and baseline evaluation seeds differ")

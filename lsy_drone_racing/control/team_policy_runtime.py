@@ -37,12 +37,17 @@ class NumpyStagePolicy:
         with np.load(path, allow_pickle=False) as archive:
             arrays = {key: np.array(archive[key], copy=True) for key in archive.files}
         if (
-            arrays["schema_version"].item() != SCHEMA_VERSION
+            arrays["schema_version"].item() not in {SCHEMA_VERSION, "stage-ppo-v2"}
             or arrays["contract_version"].item() != "v2"
             or arrays["original_model_sha256"].item() != SOURCE_SHA256
         ):
             raise ValueError("Stage actor schema, contract or original source mismatch")
         self.profile = str(arrays["profile"].item())
+        self.policy_kind = str(arrays.get("policy_kind", np.array("finetune")).item())
+        if self.policy_kind not in {"finetune", "residual"}:
+            raise ValueError("Unknown policy kind")
+        if self.policy_kind == "residual" and arrays["schema_version"].item() != "stage-ppo-v2":
+            raise ValueError("Residual models require explicit schema v2")
         self.training_kind = str(arrays.get("training_kind", np.array("unknown")).item())
         self.update_count = int(arrays.get("update_count", np.array(-1)))
         if arrays["n_stages"].shape != () or arrays["n_stages"].dtype != np.int64:
@@ -81,6 +86,25 @@ class NumpyStagePolicy:
         for name in ["obs_mean", "obs_std", "tilt_max"]:
             if not np.array_equal(self.actors["base"][name], self.actors["tuned"][name]):
                 raise ValueError("Frozen normalization must match across actors")
+        if self.policy_kind == "residual":
+            self.residual_bounds = arrays["residual_bounds"].astype(np.float64)
+            if (
+                self.residual_bounds.shape != (4,)
+                or not np.isfinite(self.residual_bounds).all()
+                or np.any(self.residual_bounds <= 0)
+            ):
+                raise ValueError("Invalid residual bounds")
+            self.residual_layers = []
+            for i, shape in enumerate([(46, 64), (64, 64), (64, 4)]):
+                weight, bias = arrays[f"residual_W{i}"], arrays[f"residual_b{i}"]
+                if (
+                    weight.shape != shape
+                    or bias.shape != (shape[1],)
+                    or not np.isfinite(weight).all()
+                    or not np.isfinite(bias).all()
+                ):
+                    raise ValueError("Invalid residual layers")
+                self.residual_layers.append((weight.astype(np.float64), bias.astype(np.float64)))
 
     def commands(self, x: np.ndarray, gate_stage: np.ndarray) -> np.ndarray:
         """Return normalized commands, evaluating only each row's selected actor."""
@@ -99,7 +123,18 @@ class NumpyStagePolicy:
         mask = np.isin(stages, self.active_stages)
         result = np.empty((len(features), 4), dtype=np.float64)
         if np.any(mask):
-            result[mask] = _forward(features[mask], self.actors["tuned"])
+            if self.policy_kind == "finetune":
+                result[mask] = _forward(features[mask], self.actors["tuned"])
+            else:
+                base = self.actors["base"]
+                delta = np.clip((features[mask] - base["obs_mean"]) / base["obs_std"], -10, 10)
+                for index, (weight, bias) in enumerate(self.residual_layers):
+                    delta = delta @ weight + bias
+                    if index != 2:
+                        delta = np.where(delta > 0, delta, np.expm1(np.minimum(delta, 0)))
+                result[mask] = np.clip(
+                    _forward(features[mask], base), -1, 1
+                ) + self.residual_bounds * np.tanh(delta)
         if np.any(~mask):
             result[~mask] = _forward(features[~mask], self.actors["base"])
         if not np.isfinite(result).all():

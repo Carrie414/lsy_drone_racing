@@ -24,15 +24,25 @@ from lsy_drone_racing.utils import load_config, load_controller
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def sha(path):
+def git_output(arguments: list[str], *, text: bool = True) -> str | bytes:
+    """Query this exact repository without changing global safe.directory settings."""
+    return subprocess.check_output(
+        ["git", "-c", f"safe.directory={ROOT.as_posix()}", *arguments], cwd=ROOT, text=text
+    )
+
+
+def sha(path: Path | str) -> str:
+    """Hash a recorded source, model or config file."""
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def json_obs(obs):
+def json_obs(obs: dict) -> dict:
+    """Serialize only the public observation without simulator internals."""
     return {k: np.asarray(v).tolist() for k, v in obs.items()}
 
 
-def wilson(k, n):
+def wilson(k: int, n: int) -> list[float]:
+    """Return the binomial success-rate Wilson 95 percent interval."""
     z = 1.95996398454
     p = k / n
     den = 1 + z * z / n
@@ -41,20 +51,24 @@ def wilson(k, n):
     return [c - h, c + h]
 
 
-def main():
+def main() -> None:
+    """Evaluate a candidate on the explicitly selected non-final seed range."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--controller", default="fast_racing_controller.py")
     parser.add_argument("--seed", type=int, default=110001)
     parser.add_argument("--runs", type=int, default=200)
     parser.add_argument("--run-id", default="C0-development-20261029")
     parser.add_argument("--trace", action="store_true")
+    parser.add_argument("--output-root", type=Path, default=ROOT / "experiments/team_runs")
+    parser.add_argument("--artifact", type=Path)
+    parser.add_argument("--artifact-manifest", type=Path)
     args = parser.parse_args()
     if args.runs < 1 or Path(args.run_id).name != args.run_id:
         parser.error("Positive run count and simple run_id required")
     # The agreed final set stays closed until a candidate has been frozen.
     if set(range(args.seed, args.seed + args.runs)) & set(range(130001, 130501)):
         parser.error("Final set is reserved; use a separately reviewed frozen-candidate protocol")
-    out = ROOT / "experiments/team_runs" / args.run_id
+    out = args.output_root / args.run_id
     if out.exists():
         parser.error(f"Refusing to overwrite {out}")
     out.mkdir(parents=True)
@@ -62,8 +76,29 @@ def main():
     config.sim.render = False
     path = ROOT / "lsy_drone_racing/control" / args.controller
     cls = load_controller(path)
-    model = ROOT / "lsy_drone_racing/control/policies/level2_reference.npz"
-    tracked = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).splitlines()
+    original_model = ROOT / "lsy_drone_racing/control/policies/level2_reference.npz"
+    model = original_model
+    if (args.artifact is None) != (args.artifact_manifest is None):
+        parser.error("--artifact and --artifact-manifest must be provided together")
+    if args.artifact is not None:
+        if args.controller != "team_policy_controller.py":
+            parser.error("External artifacts require the verified team_policy_controller.py")
+        artifact_manifest = json.loads(args.artifact_manifest.read_text(encoding="utf-8"))
+        if sha(args.artifact) != artifact_manifest["artifact_sha256"]:
+            parser.error("Candidate model hash does not match its manifest")
+        model = args.artifact.resolve()
+        cls = type(
+            "EvaluationTeamPolicy",
+            (cls,),
+            {
+                "POLICY_FILE": str(model),
+                "MANIFEST_FILE": str(args.artifact_manifest.resolve()),
+                "POLICY_SHA256": artifact_manifest["artifact_sha256"],
+            },
+        )
+    elif args.controller == "team_policy_controller.py":
+        model = ROOT / "lsy_drone_racing/control/policies_team" / cls.POLICY_FILE
+    tracked = git_output(["ls-files"]).splitlines()
     original = {name: sha(ROOT / name) for name in tracked if (ROOT / name).is_file()}
     manifest = dict(
         run_id=args.run_id,
@@ -71,15 +106,16 @@ def main():
         contract_version="v2",
         config="level2.toml",
         controller=args.controller,
-        commit=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-        dirty_status=subprocess.check_output(
-            ["git", "status", "--short", "--untracked-files=all"], cwd=ROOT, text=True
-        ),
+        commit=git_output(["rev-parse", "HEAD"]).strip(),
+        dirty_status=git_output(["status", "--short", "--untracked-files=all"]),
         tracked_diff_sha256=hashlib.sha256(
-            subprocess.check_output(["git", "diff", "HEAD", "--binary"], cwd=ROOT)
+            git_output(["diff", "HEAD", "--binary"], text=False)
         ).hexdigest(),
         controller_sha256=sha(path),
         model_sha256=sha(model),
+        model_path=str(model),
+        original_model_sha256=sha(original_model),
+        artifact_manifest_sha256=sha(args.artifact_manifest) if args.artifact_manifest else None,
         config_sha256=sha(ROOT / "config/level2.toml"),
         evaluator_sha256=sha(__file__),
         original_tracked_sha256=original,

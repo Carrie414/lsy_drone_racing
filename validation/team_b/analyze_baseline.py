@@ -17,7 +17,8 @@ from lsy_drone_racing.utils import load_config
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def main():
+def main() -> None:
+    """Summarize public observation updates and failure-stage diagnostics."""
     parser = argparse.ArgumentParser()
     parser.add_argument("run_dir", type=Path)
     args = parser.parse_args()
@@ -27,7 +28,7 @@ def main():
     space = build_action_space("attitude", cfg.sim.drone, cfg.sim.dynamics)
     low, high = float(space.low[3]), float(space.high[3])
 
-    def normalize(a):
+    def normalize(a: np.ndarray | list) -> np.ndarray:
         a = np.asarray(a)
         return np.array([a[0] / 1.5, a[1] / 1.5, a[2] / 0.5, 2 * (a[3] - low) / (high - low) - 1])
 

@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import ArrayLike
 
 
 def generalized_advantages(
-    rewards, values, next_values, terminated, task_timeouts, *, gamma=0.99, gae_lambda=0.95
-):
+    rewards: ArrayLike,
+    values: ArrayLike,
+    next_values: ArrayLike,
+    terminated: ArrayLike,
+    task_timeouts: ArrayLike,
+    *,
+    gamma: float = 0.99,
+    gae_lambda: float = 0.95,
+) -> tuple[np.ndarray, np.ndarray]:
     """Inputs [T,N]; next_values use true final obs, not a following episode's reset obs.
 
     Task deadlines are failures by protocol v2. Sampling cuts are represented by

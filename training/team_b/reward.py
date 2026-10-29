@@ -21,16 +21,16 @@ class RewardWeights:
 
 
 def racing_reward(
-    previous,
-    current,
-    u,
-    previous_u,
+    previous: dict,
+    current: dict,
+    u: np.ndarray,
+    previous_u: np.ndarray,
     *,
-    terminated=False,
-    truncated=False,
-    dt=0.02,
-    weights=RewardWeights(),
-):
+    terminated: bool = False,
+    truncated: bool = False,
+    dt: float = 0.02,
+    weights: RewardWeights = RewardWeights(),
+) -> tuple[float, dict]:
     """Return (reward, components); caller supplies final obs before any autoreset."""
     stage = int(previous["n_gates_passed"])
     after = int(current["n_gates_passed"])

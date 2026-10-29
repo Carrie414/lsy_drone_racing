@@ -3,14 +3,26 @@
 from __future__ import annotations
 
 import copy
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class HardCaseSampler:
     """Mix normal seeds with bounded, progress-aware hard-case replay weights."""
 
-    def __init__(self, allowed_seeds, *, seed=42, normal_fraction=0.5, forbidden_seeds=()):
+    def __init__(
+        self,
+        allowed_seeds: Iterable[int],
+        *,
+        seed: int = 42,
+        normal_fraction: float = 0.5,
+        forbidden_seeds: Iterable[int] = (),
+    ) -> None:
+        """Register a finite training-only pool and its normal/hard mixture."""
         self.seeds = np.asarray(sorted(set(int(s) for s in allowed_seeds)), dtype=np.int64)
         if not len(self.seeds) or not 0.25 <= normal_fraction <= 1:
             raise ValueError("Nonempty seed pool and >=25% normal mixture required")
@@ -24,7 +36,8 @@ class HardCaseSampler:
         }
         self.updates = 0
 
-    def observe(self, seed, success, gate_stage):
+    def observe(self, seed: int, success: bool, gate_stage: int) -> None:
+        """Update a seed's failure/progress record using completed training episodes."""
         row = self.records[int(seed)]
         old = row["ema_failure"]
         failure = float(not success)
@@ -37,7 +50,8 @@ class HardCaseSampler:
         )
         self.updates += 1
 
-    def probabilities(self):
+    def probabilities(self) -> np.ndarray:
+        """Return bounded replay probabilities with a guaranteed normal mixture."""
         weights = []
         for s in self.seeds:
             r = self.records[int(s)]
@@ -50,10 +64,12 @@ class HardCaseSampler:
         hard = w / w.sum()
         return self.normal_fraction / len(w) + (1 - self.normal_fraction) * hard
 
-    def sample(self, count):
+    def sample(self, count: int) -> np.ndarray:
+        """Draw training seeds using the private reproducible generator."""
         return self.rng.choice(self.seeds, size=count, replace=True, p=self.probabilities())
 
-    def state_dict(self):
+    def state_dict(self) -> dict:
+        """Copy curriculum statistics and sampler RNG for checkpointing."""
         return copy.deepcopy(
             dict(
                 seeds=self.seeds.tolist(),
@@ -64,7 +80,8 @@ class HardCaseSampler:
             )
         )
 
-    def load_state_dict(self, state):
+    def load_state_dict(self, state: dict) -> None:
+        """Restore only checkpoints from the same pool and mixture definition."""
         if (
             state["seeds"] != self.seeds.tolist()
             or state["normal_fraction"] != self.normal_fraction

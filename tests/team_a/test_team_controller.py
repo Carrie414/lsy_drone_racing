@@ -49,6 +49,7 @@ def observation() -> dict:
     [
         ("team_policy_controller.py", "TeamPolicyController"),
         ("team_c3_pilot_controller.py", "PilotController"),
+        ("team_a4_first_gate_controller.py", "PilotController"),
         ("team_gate_response_controller.py", "GateResponseController"),
         ("team_gate_soft_response_controller.py", "SoftGateResponseController"),
     ],

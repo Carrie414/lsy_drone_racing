@@ -51,12 +51,29 @@ def wilson(k: int, n: int) -> list[float]:
     return [c - h, c + h]
 
 
+def validate_split(seed: int, runs: int, split: str) -> None:
+    """Require explicit frozen validation and keep the final set closed."""
+    seeds = set(range(seed, seed + runs))
+    validation = set(range(120001, 120101))
+    if runs < 1 or split not in {"development", "validation"}:
+        raise ValueError("Positive runs and a declared development/validation split required")
+    if seeds & set(range(130001, 130501)):
+        raise ValueError(
+            "Final set is reserved; use a separately reviewed frozen-candidate protocol"
+        )
+    if split == "validation" and not seeds <= validation:
+        raise ValueError("Validation must stay within frozen seeds 120001-120100")
+    if split == "development" and seeds & validation:
+        raise ValueError("Reserved validation requires explicit --split validation")
+
+
 def main() -> None:
     """Evaluate a candidate on the explicitly selected non-final seed range."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--controller", default="fast_racing_controller.py")
     parser.add_argument("--seed", type=int, default=110001)
     parser.add_argument("--runs", type=int, default=200)
+    parser.add_argument("--split", choices=["development", "validation"], default="development")
     parser.add_argument("--run-id", default="C0-development-20261029")
     parser.add_argument("--trace", action="store_true")
     parser.add_argument("--output-root", type=Path, default=ROOT / "experiments/team_runs")
@@ -65,9 +82,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.runs < 1 or Path(args.run_id).name != args.run_id:
         parser.error("Positive run count and simple run_id required")
-    # The agreed final set stays closed until a candidate has been frozen.
-    if set(range(args.seed, args.seed + args.runs)) & set(range(130001, 130501)):
-        parser.error("Final set is reserved; use a separately reviewed frozen-candidate protocol")
+    try:
+        validate_split(args.seed, args.runs, args.split)
+    except ValueError as error:
+        parser.error(str(error))
     out = args.output_root / args.run_id
     if out.exists():
         parser.error(f"Refusing to overwrite {out}")
@@ -134,7 +152,12 @@ def main() -> None:
             for p in ["numpy", "jax", "jaxlib", "mujoco", "crazyflow", "gymnasium", "scipy"]
         },
         seeds=list(range(args.seed, args.seed + args.runs)),
-        purpose="development baseline; validation/final sets remain unopened",
+        split=args.split,
+        purpose=(
+            "frozen-candidate validation; final set remains unopened"
+            if args.split == "validation"
+            else "development baseline; validation/final sets remain unopened"
+        ),
         environment_overrides={"sim.render": False},
         time_convention=(
             "official_time=zero-based final step index/50; "

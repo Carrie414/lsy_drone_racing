@@ -40,7 +40,7 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def run_training(args: argparse.Namespace) -> dict:
+def run_training(args: argparse.Namespace, *, settings: PPOSettings | None = None) -> dict:
     """Train a finite C1/C2/C3 pilot while keeping validation and final sets closed."""
     if args.output_dir.exists():
         raise FileExistsError("Use a new output directory, including when resuming")
@@ -50,7 +50,7 @@ def run_training(args: argparse.Namespace) -> dict:
     torch.set_num_threads(1)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    settings = PPOSettings(
+    settings = settings or PPOSettings(
         seed=args.seed,
         profile=f"{args.candidate}-stage-ppo-v1",
         epochs=4,

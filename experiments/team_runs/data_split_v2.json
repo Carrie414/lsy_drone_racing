@@ -1,0 +1,35 @@
+{
+  "protocol": "2026-10-29-v2",
+  "training_environment_seeds_proposed": [
+    1000001,
+    1999999
+  ],
+  "training_initialization_seeds_proposed": [
+    20261029,
+    20261030,
+    20261031
+  ],
+  "development": {
+    "seeds": [
+      110001,
+      110200
+    ],
+    "status": "C0 completed, 200 races; now seen"
+  },
+  "validation": {
+    "seeds": [
+      120001,
+      120100
+    ],
+    "status": "reserved; not opened"
+  },
+  "final": {
+    "seeds": [
+      130001,
+      130500
+    ],
+    "status": "reserved; not opened"
+  },
+  "candidate_frozen": false,
+  "note": "Training ranges are a proposal, not executed. Candidate/selection rule must be frozen before final evaluation."
+}

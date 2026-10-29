@@ -1,0 +1,16 @@
+{
+  "plan_version": "2026-10-29-v2",
+  "contract_version": "v2",
+  "all_eight_document_hashes_verified": true,
+  "source_archive_sha256": "540b9d6677fbaf2215994ec6898883e1aa303c33b89dd8fb41d293afc5bc0ea9",
+  "files": {
+    "00_双人分工总览.md": "60ba5563761b02eb8519c9c8f5cc0a2a8fdf2a095e2829fea1362d06066f43d9",
+    "01_A_策略与控制器任务书.md": "4e779800448e0d4b551b8c47cfbcc7fa6d5ecbb5c5f831dba4c1fbd162ad7735",
+    "02_B_训练与评测任务书.md": "b6586381c57736ebcbd6a477e2a2917da7abab625c4ff4525b26de1f0fb4105b",
+    "03_双方接口协议_v1.md": "b7361669ebd45fe327707534a4e439043e711391fca9c3987ad324803cc56210",
+    "04_两台电脑Git协作与合并.md": "649c2d2720f2bdd82fc77b133a70a4da3e472a637820343339b791abf1baf0d6",
+    "05_任务看板.tsv": "8c3d15683069fb37435a474416a0608c7bf4fd904bda4a9f619cb07f2cf8050a",
+    "06_实验矩阵与选型规则.md": "0ec5c027324ccc92752317ca84e54badc914d9d0aa2723a3c8e9fc336b288663",
+    "07_交接与验收清单.md": "732265199164ed1c70f29d93a83c2fc59ec520b1a659966d05e532c48ab748f5"
+  }
+}

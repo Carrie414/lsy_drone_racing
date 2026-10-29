@@ -1,0 +1,10 @@
+{
+  "status": "Historical file found and arithmetic verified; not rerun today",
+  "path": "/Users/lily/Documents/Codex/2026-10-28/fork-https-github-com-yiye-s/outputs/main-vs-local-20261028/paired_results.json",
+  "sha256": "a927b119ef4c1fb022aa17c3d8cacd2508dd565c5cc985f62934ac50c14f238c",
+  "select_variant": "github_main",
+  "base_commit": "21c8bfb06f57181c4950823a12d931f56cc46a7f",
+  "runs": 500,
+  "successes": 391,
+  "mean_successful_seconds": 3.350537084398977
+}

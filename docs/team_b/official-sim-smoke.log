@@ -1,0 +1,5 @@
+/Users/lily/Documents/Codex/2026-10-28/fork-https-github-com-yiye-s/outputs/lsy_drone_racing/.pixi/envs/default/lib/python3.13/site-packages/jax/_src/core.py:684: RuntimeWarning: overflow encountered in cast
+  c_arg = dtypes.canonicalize_value(arg)
+INFO:__main__:Flight time (s): 3.7
+Finished: True
+Gates passed: 5

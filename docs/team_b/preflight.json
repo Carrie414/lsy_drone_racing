@@ -1,0 +1,26 @@
+{
+  "base_commit": "21c8bfb06f57181c4950823a12d931f56cc46a7f",
+  "original_model_sha256": "d15e6d613041907ed5baa565f87ee3393df099b78ecb53b4428440399baede9a",
+  "plan_version": "2026-10-29-v2",
+  "contract_version": "v2",
+  "required_a_files": {
+    "training/team_contract.py": false,
+    "training/team_a/policy.py": false,
+    "training/team_a/ppo_update.py": false,
+    "training/team_a/export_npz.py": false,
+    "lsy_drone_racing/control/team_policy_controller.py": false
+  },
+  "training_started": false,
+  "final_set_opened": false,
+  "candidate_evaluation_performed": false,
+  "torch": "not installed in active default Pixi environment",
+  "pytest": "not installed in active default Pixi environment",
+  "blockers": [
+    "training/team_contract.py",
+    "training/team_a/policy.py",
+    "training/team_a/ppo_update.py",
+    "training/team_a/export_npz.py",
+    "lsy_drone_racing/control/team_policy_controller.py",
+    "No A candidate weight / exported manifest for C1-C5"
+  ]
+}
